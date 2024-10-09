@@ -113,25 +113,31 @@ PRO PhenoFit_Beck_Perc_V1
   pheno_pars_out = transpose(pheno_pars, [1, 0, 2])
   pheno_ndgi_out = transpose(pheno_ndgi, [1, 0, 2])
 
-  print, '...... saving Double Logistic results'
+  ; save the phenological map and fitted daily NDGI as ENVI raster files
+  print, '...... saving phenological maps'
   envi_open_file, ndgi_series_dir, r_fid=fid
   map_info = envi_get_map_info(fid = fid)
   file_name = file_basename(ndgi_series_dir, '.tif')
-  out_name = out_dir + '\' + 'Double_Logistic_Parms_Full'
+  out_name = out_dir + '\' + 'Double_Logistic_Phenology'
   envi_write_envi_file, pheno_pars_out, out_name = out_name, map_info = map_info, $
     bnames = ['ud', 'sd', 'dd', 'rd', 'ndgi_ud', 'ndgi_sd', 'ndgi_dd', 'ndgi_rd', 'ndgimin', 'ndgimax']
-
-  out_name = out_dir + '\' + 'Double_Logistic_Fitted_NDGI_Full'
+  print, '...... saving fitted daily NDGI maps'
+  out_name = out_dir + '\' + 'Double_Logistic_Fitted_NDGI'
   envi_write_envi_file, pheno_ndgi_out, out_name = out_name, map_info = map_info, $
     bnames = [1:365:1]
-
 END
 
 Function phenofit, pixel_vi, date_stamp, expBEG, expEND, doy_start, doy_end, intv, pheno_par=pheno_par, fitted_vi=fitted_vi
+
+  ;**********************************************************************************************;
+  ; This function is for fitting time-series vegetation index and extract phenology with defined 
+  ; percentage in Yang et al., (2024) Environmental Research Ecology
+  ;**********************************************************************************************;
+  ; remove observations acquired during complete snow cover period
   subsnow = where(date_stamp ge expBEG and date_stamp le expEND)
   pixel_vi_subsnow = pixel_vi[subsnow]
   date_stamp_subsnow = date_stamp[subsnow]
-  ; remove outliers
+  ; remove vegetation index observation below defined background value (see Yang et al., 2024)
   pixel_vi_subsnow[where(pixel_vi_subsnow lt 0.0 or pixel_vi_subsnow gt 1)] = 0.05
   pixel_vi_subsnow[where(~finite(pixel_vi_subsnow))] = 0
   
@@ -216,6 +222,9 @@ Function double_logistic, t, parms
 End
 
 Function DoubleLogBeck, t, parms
+  ;**********************************************************************************************;
+  ; This define the structure of double logistic model
+  ;**********************************************************************************************;
   mn = parms[0]
   mx = parms[1]
   rsp = parms[2]
@@ -227,6 +236,9 @@ Function DoubleLogBeck, t, parms
 End
 
 Function simple_smooth, pheno_pars, windsize
+  ;**********************************************************************************************;
+  ; This function is for removing outliers in a map using resistant mean
+  ;**********************************************************************************************;
   dims = size(pheno_pars, /dimensions)
   ns = dims[0]
   nl = dims[1]
@@ -282,7 +294,9 @@ End
 
 
 Function fill_up, vector_in, maxNDVI               ;remove the cloudy values
-
+  ;**********************************************************************************************;
+  ; This function is for filling up missing values in time series vegetation index
+  ;**********************************************************************************************;
   num_elements=n_elements(vector_in)
 
   ;remove  continuous 0
@@ -340,7 +354,9 @@ Function fill_up, vector_in, maxNDVI               ;remove the cloudy values
 End
 
 Function sgfilter,vector_in                 ;S-G filter
-
+  ;**********************************************************************************************;
+  ; This function is for smoothing time series vegetation index with Savitzky Golay filter
+  ;**********************************************************************************************;
   num_elements = n_elements(vector_in)
   ; The first Savitzky-Golay fitting
   vector_in=reform(vector_in,num_elements)                         ; num_elements is the number of values of time-series
@@ -389,19 +405,10 @@ Function sgfilter,vector_in                 ;S-G filter
 
 End ; of function sgfilter
 
-
-Function getfilename, pathname
+Function extend, time_stamp, vi, ext_doy, expBEG, expEND, ext_vi = ext_vi
   ;**********************************************************************************************;
   ; This function is for extracting the file name from a file directory
   ;**********************************************************************************************;
-  ; get the filename in a directory
-  IF (N_PARAMS() NE 1) THEN RETURN, ''
-  idx = STRPOS(pathname,'\', /REVERSE_SEARCH)
-  filename = STRMID(pathname, idx + 1)
-  RETURN, filename
-End
-
-Function extend, time_stamp, vi, ext_doy, expBEG, expEND, ext_vi = ext_vi
   ; define the first date extend to
   ;vi = vi[where(time_stamp ge expBEG and time_stamp le expEND)]
   ;time_stamp = time_stamp[where(time_stamp ge expBEG and time_stamp le expEND)]
