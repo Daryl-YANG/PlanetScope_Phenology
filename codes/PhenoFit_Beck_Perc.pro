@@ -128,7 +128,6 @@ PRO PhenoFit_Beck_Perc_V1
 END
 
 Function phenofit, pixel_vi, date_stamp, expBEG, expEND, doy_start, doy_end, intv, pheno_par=pheno_par, fitted_vi=fitted_vi
-
   ;**********************************************************************************************;
   ; This function is for fitting time-series vegetation index and extract phenology with defined 
   ; percentage in Yang et al., (2024) Environmental Research Ecology
@@ -413,7 +412,7 @@ End ; of function sgfilter
 
 Function extend, time_stamp, vi, ext_doy, ext_vi = ext_vi
   ;**********************************************************************************************;
-  ; This function is for extracting the file name from a file directory
+  ; This function is for exteding time series vegetation index
   ;**********************************************************************************************;
   
   n_front_dates = n_elements(where(ext_doy lt time_stamp[0]))
