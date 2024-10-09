@@ -60,7 +60,7 @@ PRO PhenoFit_Beck_Perc_V1
                                                       ; the format of orginal data. bands should be 
                                                       ; the last 
 
-  ; remove areas that with very low NDGI values, corresponding to non-vegetation surfaces
+  ; create a mask to remove areas with very low NDGI values, corresponding to non-vegetation surfaces
   mask = max(ndgi_img_data, dimension = 3)
   mask[where(mask lt 0.3)] = !VALUES.F_NAN
   mask[where(mask ge 0.3)] = 1
