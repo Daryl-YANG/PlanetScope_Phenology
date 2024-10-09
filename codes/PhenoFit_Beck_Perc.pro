@@ -66,7 +66,6 @@ PRO PhenoFit_Beck_Perc_V1
   mask[where(mask ge 0.3)] = 1
   ;**********************************************************************************************;
 
-
   ;********************************* Process Phenology ******************************************;
   ; the day that the time-series NDGI will be extended to using backgound value. please do not
   ; change this parameter if not necessary
