@@ -143,23 +143,29 @@ Function phenofit, pixel_vi, date_stamp, expBEG, expEND, doy_start, doy_end, int
   
   date_stamp = date_stamp_subsnow
   pixel_vi = pixel_vi_subsnow
-  ; filter vi with sg
+  ; fit phenology if enough observations are acquired. if not skip the pixel
   num = n_elements(pixel_vi)
   if num gt 20 then begin
-    ; initialize phenofit parameters
+  
+    ; extend the time stamp to the first and last day of a year
     front_extend_dates = [doy_start:(expBEG-1):intv]
     end_extend_dates = [doy_end:(expEND+1):-intv]
     end_extend_dates = end_extend_dates[sort(end_extend_dates)]
     ext_doy = [front_extend_dates, date_stamp, end_extend_dates]
+
+    ; extend the time seires vegetation index
+    pixel_t_vi = extend(date_stamp, pixel_vi, ext_doy, ext_vi = ext_vi)
+    ; smooth the time series with savitzky goley filter
+    pixel_vi_sgfilterred =  sgfilter(ext_vi)
+
+    ; initialize double logistic model parameters and fit double logistic curve
     parms = [0.01, 1.0, 0.05, 0.02, 140, 260]
     yerr = randomn(seed, n_elements(ext_doy))/100
-    pixel_t_vi = extend(date_stamp, pixel_vi, ext_doy, expBEG, expEND, ext_vi = ext_vi)
-    pixel_vi_sgfilterred =  sgfilter(ext_vi)
     result = MPFITFUN('DoubleLogBeck', ext_doy, pixel_vi_sgfilterred, yerr, parms, yfit = yfit, $
       STATUS=ST, ERRMSG=ERR, /QUIET) ;
-    ;doublog_parms[lon_col, lon_row, *] = result
 
-    ; generate smooth fitted vi time series
+    ; generate smooth fitted vi time series and extract phenological parameters using percentage 
+    ; method see Yang et al., 2024.
     t = [1:365:1]
     if n_elements(result) eq 6 then begin
       mn = result[0]
@@ -170,30 +176,30 @@ Function phenofit, pixel_vi, date_stamp, expBEG, expEND, doy_start, doy_end, int
       eos = result[5]
       fitted_vi = mn + (mx-mn)*(1/(1+exp(-rsp*(t-sos))) + 1/(1+exp(rau*(t-eos))))
       ; determine pheno dates based on percentage
-      vi_green = fitted_vi[100:213] ;213
+      vi_green = fitted_vi[100:213]
       vi_brown = fitted_vi[213:300]
 
       vimax = max(fitted_vi[expBEG:expEND])
       vimin = min(fitted_vi[expBEG:expEND])
-      vi25 = 0.15*(vimax-vimin) + vimin
-      vi75 = 0.85*(vimax-vimin) + vimin
+      vi15 = 0.15*(vimax-vimin) + vimin
+      vi85 = 0.85*(vimax-vimin) + vimin
 
-      viUD= vi25
+      viUD= vi15
       UD = where(abs(vi_green - viUD) eq min(abs(vi_green - viUD))) + 100
       if n_elements(UD) gt 1 then begin
         UD = !VALUES.F_NAN
       endif
-      viSD = vi75
+      viSD = vi85
       SD = where(abs(vi_green - viSD) eq min(abs(vi_green - viSD))) + 100
       if n_elements(SD) gt 1 then begin
         SD = !VALUES.F_NAN
       endif
-      viDD = vi75
+      viDD = vi85
       DD = where(abs(vi_brown - viDD) eq min(abs(vi_brown - viDD))) + 213
       if n_elements(DD) gt 1 then begin
         DD = !VALUES.F_NAN
       endif
-      viRD = vi25
+      viRD = vi15
       RD = where(abs(vi_brown - viRD) eq min(abs(vi_brown - viRD))) + 213
       if n_elements(RD) gt 1 then begin
         RD = !VALUES.F_NAN
@@ -212,7 +218,7 @@ Function phenofit, pixel_vi, date_stamp, expBEG, expEND, doy_start, doy_end, int
     pheno_par = replicate(0, 10)
     fitted_vi = replicate(0, 365)
   endif
-
+  ; delete current process cycle to save memory
   delvar, pixel_vi, date_stamp
 End
   
@@ -405,14 +411,11 @@ Function sgfilter,vector_in                 ;S-G filter
 
 End ; of function sgfilter
 
-Function extend, time_stamp, vi, ext_doy, expBEG, expEND, ext_vi = ext_vi
+Function extend, time_stamp, vi, ext_doy, ext_vi = ext_vi
   ;**********************************************************************************************;
   ; This function is for extracting the file name from a file directory
   ;**********************************************************************************************;
-  ; define the first date extend to
-  ;vi = vi[where(time_stamp ge expBEG and time_stamp le expEND)]
-  ;time_stamp = time_stamp[where(time_stamp ge expBEG and time_stamp le expEND)]
-
+  
   n_front_dates = n_elements(where(ext_doy lt time_stamp[0]))
   front_extend_vi = replicate(min(vi), n_front_dates) + randomu(seed, n_front_dates)*0.02 ;
   n_end_dates = n_elements(where(ext_doy gt time_stamp[n_elements(time_stamp)-1]))
